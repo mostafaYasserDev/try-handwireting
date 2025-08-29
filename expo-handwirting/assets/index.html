@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arabic Handwriting Tracing – High-Accuracy Prototype</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --ink: #1e293b;
+      --muted: #64748b;
+      --accent: #059669;
+      --alert: #dc2626;
+      --guide: #3b82f620;
+      --points: #3b82f6;
+      --border: #e2e8f0;
+      --input-bg: #f1f5f9;
+    }
+
+    @font-face {
+      font-family: 'Cairo';
+      src: url('./fonts/Cairo-VariableFont_slnt\,wght.ttf') format('truetype');
+      font-weight: 200 1000;
+      font-style: normal;
+    }
+
+    * {
+      font-family: 'Cairo';
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Cairo', system-ui, Segoe UI, Roboto, Arial;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px 16px 40px;
+      display: grid;
+      gap: 14px
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 2px 0 6px;
+      color: var(--ink);
+      font-weight: 700;
+      letter-spacing: .2px
+    }
+
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: end;
+      background: var(--panel);
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    input[type="text"] {
+      min-width: 280px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+
+    input[type="number"] {
+      width: 92px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--ink);
+      transition: border-color 0.2s ease;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+
+    input[type="file"] {
+      color: var(--muted);
+      max-width: 280px
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: white;
+      transition: all 0.2s ease;
+    }
+
+    .btn.primary:hover {
+      background: #047857;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
+
+    .btn.ghost {
+      background: var(--input-bg);
+      color: var(--ink);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+
+    .btn.ghost:hover {
+      background: #e2e8f0;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .note {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .stage {
+      position: relative;
+      background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 20px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      padding: 16px;
+    }
+
+    .stage .tools {
+      position: absolute;
+      inset: auto 12px 12px auto;
+      display: flex;
+      gap: 8px;
+      z-index: 4
+    }
+
+    .tools .chip {
+      font-size: 12px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      color: var(--ink);
+      border-radius: 30px;
+      padding: 6px 10px;
+      backdrop-filter: blur(8px);
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 60vh;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+      touch-action: none;
+      border-radius: 12px;
+    }
+
+    .bgWord {
+      fill: #ffffff;
+      opacity: .15;
+      filter: blur(0.2px);
+    }
+
+    .refPath {
+      fill: none;
+      stroke: rgba(147, 197, 253, 0.4);
+      stroke-width: 2.5;
+      stroke-dasharray: 5, 5;
+      stroke-linecap: round;
+    }
+
+    .guidePoint {
+      fill: #93c5fd;
+      opacity: .9;
+    }
+
+    .userStroke {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 45px
+    }
+
+    /* Removed grid styles - using dots pattern instead */
+
+    .sep {
+      flex: 1
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>✍️ تتبّع الكتابة العربية – نموذج دقيق</h1>
+
+    <div class="bar">
+      <div class="field">
+        <label>الكلمة / العبارة</label>
+        <input id="wordInput" type="text" placeholder="اكتب كلمة عربية هنا" value="محمد" />
+      </div>
+
+      <!-- Font field removed - using embedded Cairo font -->
+
+      <div class="field">
+        <label>الحجم</label>
+        <input id="fontSize" type="number" value="500" min="40" max="800" step="10" />
+      </div>
+
+
+      <button id="genBtn" class="btn primary">توليد</button>
+      <button id="resetBtn" class="btn ghost">إعادة الضبط</button>
+      <div class="sep"></div>
+
+    </div>
+
+    <div class="stage">
+
+      <svg id="board" xmlns="http://www.w3.org/2000/svg" tabindex="0" aria-label="Arabic tracing board">
+        <!-- subtle dots pattern instead of grid -->
+        <defs>
+          <pattern id="dots" width="60" height="60" patternUnits="userSpaceOnUse">
+            <circle cx="30" cy="30" r="1" fill="rgba(255, 255, 255, 0.1)" />
+          </pattern>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <rect x="0" y="0" width="100%" height="100%" fill="url(#dots)" />
+        <!-- background text (guideline) -->
+        <text id="bgText" class="bgWord"></text>
+        <!-- reference path from real font -->
+        <path id="refPath" class="refPath"></path>
+        <!-- sampled guide points -->
+        <g id="guidePoints"></g>
+        <!-- user strokes container -->
+        <g id="strokes"></g>
+      </svg>
+    </div>
+
+
+  </div>
+
+  <!-- 1) Load opentype.js (for text → SVG path from real font) -->
+  <script src="https://unpkg.com/opentype.js@1.3.4/dist/opentype.min.js"></script>
+  <!-- If you need 100% offline, replace the line above with a <script> tag that inlines the minified opentype.js here. -->
+
+  <script>
+    (function () {
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const board = document.getElementById('board');
+      const refPathEl = document.getElementById('refPath');
+      const guideGroup = document.getElementById('guidePoints');
+      const strokesGroup = document.getElementById('strokes');
+      const bgText = document.getElementById('bgText');
+
+      const wordInput = document.getElementById('wordInput');
+      // const fontFile = document.getElementById('fontFile'); // Removed font file input
+      const fontSizeInput = document.getElementById('fontSize');
+      // Removed sampleStep and tolerance inputs; using fixed values below
+      const genBtn = document.getElementById('genBtn');
+      const resetBtn = document.getElementById('resetBtn');
+
+      let fontData = null;        // ArrayBuffer
+      let otFont = null;          // opentype Font
+      let refSamplePts = [];      // {x,y} sampled along outline
+      let spatial = null;         // spatial index for quick nearest lookup
+      let viewBox = { x: 0, y: 0, w: 1600, h: 900 };
+      let cairoFontLoaded = false; // Cairo font loaded flag
+      let currentFontSize = 500;   // track current font size for tolerance
+
+      // Init SVG size / viewBox
+      function fitViewBox() {
+        const r = board.getBoundingClientRect();
+        if (!viewBox.w) { viewBox = { x: 0, y: 0, w: Math.max(1200, r.width), h: Math.max(500, r.height) }; }
+        board.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+      }
+      fitViewBox(); addEventListener('resize', fitViewBox);
+
+      // Optional Arabic reshaping to presentation forms so any font will have correct forms through OpenType.
+      // opentype.js can layout, but to be robust we apply a simple shaper using 'arabic presentation forms' fallback.
+      // (This handles basic joining; advanced typography still comes from the font tables when present.)
+      function shapeArabicBasic(s) {
+        // Very lightweight shaper: uses Unicode joining types to pick initial/medial/final/isolated forms where available.
+        // For brevity, we defer to font's GSUB if available by using font.getPath(text, ...).
+        // So we just return s — opentype's layout will handle Arabic for common fonts.
+        return s;
+      }
+
+      // Load Cairo font automatically
+      async function loadCairoFont() {
+        try {
+          const response = await fetch('./fonts/Cairo-VariableFont_slnt,wght.ttf');
+          fontData = await response.arrayBuffer();
+          otFont = opentype.parse(fontData);
+          cairoFontLoaded = true;
+          console.log('Cairo font loaded successfully');
+        } catch (err) {
+          console.error('Failed to load Cairo font:', err);
+          cairoFontLoaded = false;
+        }
+      }
+
+      // Load font on page load
+      loadCairoFont();
+
+      // Generate background text, reference path and sample points
+      async function generate() {
+        strokesGroup.innerHTML = '';
+        refSamplePts = [];
+        spatial = null;
+
+        const text = (wordInput.value || '').trim();
+        const fontSize = clamp(parseFloat(fontSizeInput.value) || 220, 40, 800);
+        currentFontSize = fontSize;
+        const step = 10; // coarser sampling to reduce DOM nodes significantly
+
+        if (!text) {
+          alert('اكتب كلمة أو عبارة عربية أولاً.');
+          return;
+        }
+
+        // 1) Background nicely-shaped word (visual guide) using Cairo font
+        const cx = viewBox.w * 0.5; // center horizontally
+        const cy = viewBox.h * 0.5; // center vertically
+        bgText.setAttribute('x', cx);
+        bgText.setAttribute('y', cy);
+        bgText.setAttribute('text-anchor', 'middle');
+        bgText.setAttribute('dominant-baseline', 'central');
+        bgText.setAttribute('style', `font-size:${fontSize}px; font-family: 'Cairo', system-ui, sans-serif;`);
+        bgText.textContent = text;
+
+        // 2) Build precise outline path from real font via opentype.js (requires a loaded font)
+        if (!otFont || !cairoFontLoaded) {
+          console.log('Waiting for Cairo font to load...');
+          setTimeout(() => generate(), 500); // Retry after 500ms
+          return;
+        }
+
+        // Layout with opentype (it handles Arabic features for most fonts)
+        const shaped = shapeArabicBasic(text);
+        // Compute path at a position so the text sits centered where bgText is
+        const metrics = otFont.getAdvanceWidth(shaped, fontSize);
+        const px = cx - metrics / 2; // center the text properly
+        const py = cy + fontSize * 0.35;
+
+        const path = otFont.getPath(shaped, px, py, fontSize, { kerning: true, features: { liga: true, calt: true, init: true, medi: true, fina: true } });
+        const d = path.toPathData(2);
+        refPathEl.setAttribute('d', d);
+
+        // 3) Sample evenly spaced points along the outline using the browser's geometry
+        const tmp = document.createElementNS(svgNS, 'path'); tmp.setAttribute('d', d);
+        board.appendChild(tmp); // must be in DOM to use getTotalLength reliably
+        const total = tmp.getTotalLength();
+        const pts = [];
+        for (let L = 0; L <= total; L += step) {
+          const p = tmp.getPointAtLength(L);
+          pts.push({ x: p.x, y: p.y });
+        }
+        // ensure last point
+        if (pts.length && (total % step) !== 0) {
+          const p = tmp.getPointAtLength(total);
+          pts.push({ x: p.x, y: p.y });
+        }
+        board.removeChild(tmp);
+        refSamplePts = pts;
+
+        // 4) Paint the small guide points
+        guideGroup.innerHTML = '';
+        const r = Math.max(3, Math.min(6, fontSize / 80)); // Increased radius for visibility
+        const frag = document.createDocumentFragment();
+        for (const p of pts) {
+          const c = document.createElementNS(svgNS, 'circle');
+          c.setAttribute('class', 'guidePoint');
+          c.setAttribute('cx', p.x);
+          c.setAttribute('cy', p.y);
+          c.setAttribute('r', r);
+          frag.appendChild(c);
+        }
+        guideGroup.appendChild(frag);
+
+        // 5) Build a spatial index for fast nearest-point lookup
+        spatial = buildSpatialIndex(pts, Math.max(step * 2, 16));
+      }
+
+      // Spatial hash grid index
+      function buildSpatialIndex(points, cell = 24) {
+        const grid = new Map();
+        function key(ix, iy) { return ix + '|' + iy; }
+        for (let idx = 0; idx < points.length; idx++) {
+          const p = points[idx];
+          const ix = Math.floor(p.x / cell), iy = Math.floor(p.y / cell);
+          const k = key(ix, iy);
+          if (!grid.has(k)) grid.set(k, []);
+          grid.get(k).push({ x: p.x, y: p.y, i: idx });
+        }
+        return {
+          cell,
+          query(x, y) {
+            const ix = Math.floor(x / cell), iy = Math.floor(y / cell);
+            let best = Infinity, bx = x, by = y, bi = -1;
+            for (let dx = -2; dx <= 2; dx++) {
+              for (let dy = -2; dy <= 2; dy++) {
+                const arr = grid.get((ix + dx) + '|' + (iy + dy));
+                if (!arr) continue;
+                for (const p of arr) {
+                  const d2 = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+                  if (d2 < best) { best = d2; bx = p.x; by = p.y; bi = p.i; }
+                }
+              }
+            }
+            return { dist: Math.sqrt(best), x: bx, y: by, i: bi };
+          }
+        };
+      }
+
+      // Drawing & verification
+      let drawing = false;
+      let rawPoints = [];
+      let currPathEl = null;
+      let lastPass = false;
+      let filteredPoint = null; // for jitter smoothing
+
+      function currentTolerance() {
+        // Dynamic corridor: accepts drawing within the space that the guide dots imply
+        const strokeW = getStrokeWidth();
+        const byStroke = strokeW * 2.2;           // generous around drawn stroke thickness
+        const byFont = (currentFontSize || 500) * 0.035; // scale with glyph size
+        return Math.max(12, byStroke, byFont);
+      }
+
+      function getStrokeWidth() {
+        return Math.max(6, viewBox.w / 280); // slightly thicker than before
+      }
+
+      function pointerPos(evt) {
+        const pt = board.createSVGPoint();
+        if (evt.touches && evt.touches[0]) { pt.x = evt.touches[0].clientX; pt.y = evt.touches[0].clientY; }
+        else { pt.x = evt.clientX; pt.y = evt.clientY; }
+        const ctm = board.getScreenCTM().inverse();
+        const p = pt.matrixTransform(ctm);
+        return { x: p.x, y: p.y };
+      }
+
+      // Magnetic snapping toward nearest segment
+      function projectToNearestSegment(pt) {
+        if (!spatial || !Array.isArray(refSamplePts) || refSamplePts.length < 2) return { x: pt.x, y: pt.y, dist: Infinity };
+        const q = spatial.query(pt.x, pt.y);
+        let best = { x: pt.x, y: pt.y, dist: Infinity };
+        if (q.i === -1) return best;
+        const idx = q.i;
+        const consider = [];
+        if (idx > 0) consider.push([refSamplePts[idx - 1], refSamplePts[idx]]);
+        if (idx < refSamplePts.length - 1) consider.push([refSamplePts[idx], refSamplePts[idx + 1]]);
+        const edgeEps = 0.08; // avoid snapping exactly to dots (segment endpoints)
+        for (const [A, B] of consider) {
+          const vx = B.x - A.x, vy = B.y - A.y;
+          const wx = pt.x - A.x, wy = pt.y - A.y;
+          const vv = vx * vx + vy * vy;
+          let t = vv === 0 ? 0.5 : (wx * vx + wy * vy) / vv;
+          t = Math.max(edgeEps, Math.min(1 - edgeEps, t));
+          const projx = A.x + t * vx;
+          const projy = A.y + t * vy;
+          const d = Math.hypot(pt.x - projx, pt.y - projy);
+          if (d < best.dist) best = { x: projx, y: projy, dist: d };
+        }
+        return best;
+      }
+
+      function applyMagnet(pt) {
+        // 1) Avoid magnet near guide dots (magnet only in the corridor between dots)
+        if (spatial) {
+          const q = spatial.query(pt.x, pt.y);
+          const dotR = Math.max(3, Math.min(6, (currentFontSize || 500) / 80));
+          const noMagRadius = dotR * 1.8; // disable magnet close to dots
+          if (q.dist <= noMagRadius) return pt;
+        }
+        const snap = projectToNearestSegment(pt);
+        const lockRadius = currentTolerance() * 1.1; // lock tightly when inside the corridor
+        const pullRadius = currentTolerance() * 1.8;  // pull from a bit farther
+        if (snap.dist <= lockRadius) {
+          // Hard lock to the path to eliminate wobble
+          return { x: snap.x, y: snap.y };
+        }
+        if (snap.dist < pullRadius) {
+          const strength = 0.94; // very strong pull
+          return { x: pt.x + (snap.x - pt.x) * strength, y: pt.y + (snap.y - pt.y) * strength };
+        }
+        return pt;
+      }
+
+      function startDraw(evt) {
+        if (!refSamplePts.length) { return; }
+        drawing = true; rawPoints = [];
+        let p = pointerPos(evt);
+        p = applyMagnet(p);
+        filteredPoint = p;
+        rawPoints.push(p);
+        currPathEl = document.createElementNS(svgNS, 'path');
+        currPathEl.setAttribute('class', 'userStroke');
+        currPathEl.setAttribute('stroke', '#e2e8f0'); // provisional
+        currPathEl.setAttribute('stroke-width', getStrokeWidth());
+        strokesGroup.appendChild(currPathEl);
+        evt.preventDefault();
+      }
+      let isRafScheduled = false;
+      let lastPoint = null;
+      function moveDraw(evt) {
+        if (!drawing) return;
+        const p = applyMagnet(pointerPos(evt));
+        // Light EMA smoothing to reduce jitter
+        const alpha = 0.6; // higher = more responsive
+        filteredPoint = filteredPoint
+          ? { x: filteredPoint.x * (1 - alpha) + p.x * alpha, y: filteredPoint.y * (1 - alpha) + p.y * alpha }
+          : p;
+        lastPoint = filteredPoint;
+        if (!isRafScheduled) {
+          isRafScheduled = true;
+          requestAnimationFrame(tickDraw);
+        }
+        evt.preventDefault();
+      }
+      function tickDraw() {
+        if (!drawing || !lastPoint) {
+          isRafScheduled = false;
+          return;
+        }
+        rawPoints.push(lastPoint);
+        // Smooth for rendering (Chaikin + Catmull-Rom → Cubic)
+        const sm = smoothChaikin(rawPoints, 2);
+        const d = catmullRomToCubic(sm);
+        currPathEl.setAttribute('d', d);
+        // Strict verification on RAW points (not smoothed)
+        const tol = currentTolerance();
+        const pass = verifyRaw(rawPoints, tol);
+        lastPass = pass;
+        currPathEl.setAttribute('stroke', pass ? 'var(--accent)' : 'var(--alert)');
+        isRafScheduled = false;
+      }
+      function endDraw() {
+        if (currPathEl && rawPoints.length > 0) {
+          // Finalize color using a trimmed set to ignore last shaky points
+          const tol = currentTolerance();
+          const trimmed = rawPoints.slice(0, Math.max(1, rawPoints.length - 6));
+          const finalPass = verifyRaw(trimmed, tol) || lastPass;
+          currPathEl.setAttribute('stroke', finalPass ? 'var(--accent)' : 'var(--alert)');
+        }
+        drawing = false; rawPoints = []; currPathEl = null; lastPass = false;
+      }
+
+      function verifyRaw(points, tol) {
+        if (!spatial) return false;
+        const pt = points[points.length - 1];
+        const q = spatial.query(pt.x, pt.y);
+        let d = q.dist;
+        // Also consider distance to adjacent segments between guide points
+        if (q.i !== -1 && Array.isArray(refSamplePts) && refSamplePts.length > 1) {
+          const idx = q.i;
+          const P = refSamplePts[idx];
+          if (idx > 0) {
+            const A = refSamplePts[idx - 1];
+            d = Math.min(d, pointToSegmentDistance(pt, A, P));
+          }
+          if (idx < refSamplePts.length - 1) {
+            const B = refSamplePts[idx + 1];
+            d = Math.min(d, pointToSegmentDistance(pt, P, B));
+          }
+        }
+        return d <= tol;
+      }
+
+      // Euclidean distance from a point to a line segment AB
+      function pointToSegmentDistance(P, A, B) {
+        const vx = B.x - A.x;
+        const vy = B.y - A.y;
+        const wx = P.x - A.x;
+        const wy = P.y - A.y;
+        const vv = vx * vx + vy * vy;
+        if (vv === 0) {
+          const dx = P.x - A.x, dy = P.y - A.y;
+          return Math.hypot(dx, dy);
+        }
+        let t = (wx * vx + wy * vy) / vv;
+        t = Math.max(0, Math.min(1, t));
+        const projx = A.x + t * vx;
+        const projy = A.y + t * vy;
+        return Math.hypot(P.x - projx, P.y - projy);
+      }
+
+      // Smoothing helpers
+      function smoothChaikin(pts, iterations = 1) {
+        if (pts.length < 3) return pts.slice();
+        let out = pts.slice();
+        for (let k = 0; k < iterations; k++) {
+          const res = [out[0]];
+          for (let i = 0; i < out.length - 1; i++) {
+            const p = out[i], q = out[i + 1];
+            const r = { x: 0.75 * p.x + 0.25 * q.x, y: 0.75 * p.y + 0.25 * q.y };
+            const s = { x: 0.25 * p.x + 0.75 * q.x, y: 0.25 * p.y + 0.75 * q.y };
+            res.push(r, s);
+          }
+          res.push(out[out.length - 1]);
+          out = res;
+        }
+        return out;
+      }
+      function catmullRomToCubic(pts) {
+        if (pts.length < 2) return '';
+        if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+        const p = pts;
+        let d = `M ${p[0].x} ${p[0].y}`;
+        for (let i = 0; i < p.length - 1; i++) {
+          const p0 = p[i - 1] || p[i];
+          const p1 = p[i];
+          const p2 = p[i + 1];
+          const p3 = p[i + 2] || p[i + 1];
+          const cp1x = p1.x + (p2.x - p0.x) / 6;
+          const cp1y = p1.y + (p2.y - p0.y) / 6;
+          const cp2x = p2.x - (p3.x - p1.x) / 6;
+          const cp2y = p2.y - (p3.y - p1.y) / 6;
+          d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+        }
+        return d;
+      }
+
+      // Utils
+      function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+      // Events (pointer events cover mouse + touch on modern browsers)
+      board.addEventListener('pointerdown', startDraw, { passive: false });
+      board.addEventListener('pointermove', moveDraw, { passive: false });
+      addEventListener('pointerup', endDraw, { passive: true });
+      addEventListener('pointercancel', endDraw, { passive: true });
+
+      genBtn.addEventListener('click', generate);
+      resetBtn.addEventListener('click', () => {
+        strokesGroup.innerHTML = '';
+      });
+
+      // No auto-generate on load to avoid heavy work until user requests it
+
+    })();
+  </script>
+</body>
+
+</html>
